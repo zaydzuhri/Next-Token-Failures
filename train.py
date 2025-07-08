@@ -192,6 +192,8 @@ for ep in range(args.epochs):
 
         results = evaluate(model, test_loader, temperature=0.8, ctx=ctx, top_k=top_k, results=results, mode='test')
         results = evaluate_forced(model, test_loader, ctx=ctx, results=results, mode='test')
+        results["train/loss"] = loss
+        results["train/acc"] = accs['acc']
 
         if wandb_log:
             wandb.log(results)
