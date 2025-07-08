@@ -112,7 +112,7 @@ ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torc
 beta1 = 0.9
 beta2 = 0.999
 decay_lr = True
-args.compile = False if device == 'cuda' else False
+args.compile = True if device == 'cuda' else False
 args.use_flash = True if device == 'cuda' else False
 warmup_iters = 100
 min_lr = 1e-5

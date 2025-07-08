@@ -103,10 +103,14 @@ class Transformer(nn.Module):
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1)
             if self.config.use_top:
                 # Use TOP for loss calculation
-                # Pad the targets to double the sequence length with -100s
-                top_targets = torch.cat((targets, -100 * torch.ones((bsz, seq_len), dtype=torch.long, device=device)), dim=1)
-                top_targets = seq_to_top(top_targets, vocab_size=self.vocab_size, window_size=seq_len, pad_token_id=-100).contiguous()
-                top_loss = self.top_loss(x, top_targets, self.top_head.weight, self.top_head.bias)
+                # Pad the targets to double the sequence length with -1s
+                torch.set_printoptions(profile="full")
+                top_targets = torch.cat((targets, -1 * torch.ones((bsz, seq_len), dtype=torch.long, device=device)), dim=1)
+                top_targets = seq_to_top(top_targets, vocab_size=self.vocab_size, window_size=seq_len, pad_token_id=-1)
+                # we need to ignore the prefix tokens in the TOP loss too
+                # check at which position the prefix ends
+                prefix_end = targets[0].eq(-1).sum()
+                top_loss = self.top_loss(x[:, prefix_end:].contiguous(), top_targets[:, prefix_end:].contiguous(), self.top_head.weight, self.top_head.bias)
                 loss = loss + top_loss
 
             acc, token_acc = accuracy(logits, targets)

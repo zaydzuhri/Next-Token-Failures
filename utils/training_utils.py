@@ -30,17 +30,19 @@ class AverageMeter:
         return val
 
 
+@torch.compiler.disable()
 def accuracy(logits, targets):
-    num_prefix_tokens = targets[0].eq(-1).sum().item()
-    num_target_tokens = targets.shape[1] - num_prefix_tokens
-    targets = targets[:, num_prefix_tokens:]
-    logits = logits[:, num_prefix_tokens:, :]
-    correct = torch.argmax(logits, dim=-1).eq(targets).to(torch.float)
-    seq_correct = torch.sum(correct, dim=1).eq(num_target_tokens).float()
-    acc = torch.mean(seq_correct)
-    per_token_acc = correct.mean(dim=0)
+    with torch.no_grad():
+        num_prefix_tokens = targets[0].eq(-1).sum().item()
+        num_target_tokens = targets.shape[1] - num_prefix_tokens
+        targets = targets[:, num_prefix_tokens:]
+        logits = logits[:, num_prefix_tokens:, :]
+        correct = torch.argmax(logits, dim=-1).eq(targets).to(torch.float)
+        seq_correct = torch.sum(correct, dim=1).eq(num_target_tokens).float()
+        acc = torch.mean(seq_correct)
+        per_token_acc = correct.mean(dim=0)
 
-    return acc, per_token_acc
+        return acc, per_token_acc
 
 
 def get_run_name(args):
