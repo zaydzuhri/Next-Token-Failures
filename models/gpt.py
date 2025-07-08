@@ -11,7 +11,6 @@ from models.lib import Attention, MLP, LayerNorm
 from models.base_model import Transformer
 from utils.load import load_gpt
 
-
 class Block(nn.Module):
     def __init__(self, config, layer_idx):
         super().__init__()

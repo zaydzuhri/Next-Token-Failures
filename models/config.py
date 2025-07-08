@@ -46,6 +46,7 @@ class GPTConfig:
     dtype = torch.bfloat16
     cache: bool = True
     max_bsz: int = 16
+    use_top: bool = False
 
 
 @dataclass

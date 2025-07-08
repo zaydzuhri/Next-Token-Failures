@@ -84,6 +84,9 @@ parser.add_argument(
 parser.add_argument(
         "--wandb_entity", type=str, default=None, help="Wandb username",
     )
+parser.add_argument(
+        "--use_top", action=argparse.BooleanOptionalAction, default=False, help="Use TOP for training",
+    )
 
 args = parser.parse_args()
 # System stuff

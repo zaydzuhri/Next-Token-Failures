@@ -6,7 +6,7 @@ from torch.nn import functional as F
 
 from models.cache import Cache
 from utils.training_utils import accuracy
-
+from models.top import seq_to_top, FusedLinearListNetLoss
 
 class Transformer(nn.Module):
     def __init__(self, config, block):
@@ -23,6 +23,11 @@ class Transformer(nn.Module):
             [block(config, layer_idx) for layer_idx in range(config.n_layers)]
         )
         self.final_layernorm = nn.LayerNorm(config.n_embd)
+
+        if config.use_top:
+            # Use TOP loss too
+            self.top_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
+            self.top_loss = FusedLinearListNetLoss()
 
         if config.cache:
             # Instantiated but not occupying memory yet
@@ -96,6 +101,15 @@ class Transformer(nn.Module):
             # Calculate loss with ignore_index=-1, meaning we skip the gradient contributions from those tokens
             # which is basically the prefix tokens
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1)
+            if self.config.use_top:
+                # Use TOP for loss calculation
+                # Pad the targets to double the sequence length with -100s
+                top_targets = torch.cat((targets, -100 * torch.ones((bsz, seq_len), dtype=torch.long, device=device)), dim=1)
+                top_targets = seq_to_top(top_targets, vocab_size=self.vocab_size, window_size=seq_len, pad_token_id=-100).contiguous()
+                top_loss = self.top_loss(x, top_targets, self.top_head.weight, self.top_head.bias)
+                print(f"TOP loss: {top_loss.item()}")
+                loss = loss + top_loss
+
             acc, token_acc = accuracy(logits, targets)
             accs = {"acc": acc, "token_acc": token_acc}
         else:
