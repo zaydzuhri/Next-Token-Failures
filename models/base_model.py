@@ -107,7 +107,6 @@ class Transformer(nn.Module):
                 top_targets = torch.cat((targets, -100 * torch.ones((bsz, seq_len), dtype=torch.long, device=device)), dim=1)
                 top_targets = seq_to_top(top_targets, vocab_size=self.vocab_size, window_size=seq_len, pad_token_id=-100).contiguous()
                 top_loss = self.top_loss(x, top_targets, self.top_head.weight, self.top_head.bias)
-                print(f"TOP loss: {top_loss.item()}")
                 loss = loss + top_loss
 
             acc, token_acc = accuracy(logits, targets)

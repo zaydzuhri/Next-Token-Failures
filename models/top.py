@@ -195,7 +195,6 @@ def logsumexp_fwd(
 # Code adapted from
 # https://github.com/linkedin/Liger-Kernel/blob/main/src/liger_kernel/ops/fused_linear_cross_entropy.py
 
-from functools import partial
 from typing import Optional, Tuple
 
 import torch
@@ -203,9 +202,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import triton
 import triton.language as tl
-from torch.distributed import DeviceMesh
-from torch.distributed.tensor import DTensor, Replicate, Shard, distribute_module
-from torch.distributed.tensor.parallel import ParallelStyle
 
 # The hard limit of TRITON_MAX_TENSOR_NUMEL is 1048576
 # https://github.com/triton-lang/triton/blob/ba42a5c68fd0505f8c42f4202d53be0f8d9a5fe0/python/triton/language/core.py#L19
@@ -550,59 +546,6 @@ class FusedLinearListNetLoss(nn.Module):
             reduction=self.reduction
         )
         return loss
-
-
-class LinearLossParallel(ParallelStyle):
-    def __init__(
-        self,
-        *,
-        sequence_dim: int = 1,
-        use_local_output: bool = False,
-    ):
-        super().__init__()
-
-        self.sequence_sharding = (Shard(sequence_dim),)
-        self.use_local_output = use_local_output
-
-    @staticmethod
-    def _prepare_input_fn(sequence_sharding, mod, inputs, device_mesh):
-        x, target, weight, bias = inputs
-
-        if not isinstance(x, DTensor):
-            # assume the input passed in already sharded on the sequence dim and create the DTensor
-            x = DTensor.from_local(x, device_mesh, sequence_sharding)
-        if x.placements != sequence_sharding:
-            x = x.redistribute(placements=sequence_sharding, async_op=True)
-        if not isinstance(target, DTensor):
-            target = DTensor.from_local(target, device_mesh, [Replicate()])
-        if target.placements != sequence_sharding:
-            target = target.redistribute(placements=sequence_sharding, async_op=True)
-
-        if not isinstance(weight, DTensor):
-            weight = DTensor.from_local(weight, device_mesh, [Replicate()])
-        if weight.placements != [Replicate()]:
-            # we replicate the weight/bias in FLCE
-            weight = weight.redistribute(placements=[Replicate()], async_op=True)
-
-        if bias is not None and not isinstance(bias, DTensor):
-            bias = DTensor.from_local(bias, device_mesh, [Replicate()])
-        if bias is not None and bias.placements != [Replicate()]:
-            bias = bias.redistribute(placements=[Replicate()], async_op=True)
-
-        return x.to_local(), target.to_local(), weight.to_local(), bias.to_local() if bias is not None else bias
-
-    @staticmethod
-    def _prepare_output_fn(use_local_output, mod, outputs, device_mesh):
-        return outputs.to_local() if use_local_output else outputs
-
-    def _apply(self, module: nn.Module, device_mesh: DeviceMesh) -> nn.Module:
-        return distribute_module(
-            module,
-            device_mesh,
-            partition_fn=None,
-            input_fn=partial(self._prepare_input_fn, self.sequence_sharding),
-            output_fn=partial(self._prepare_output_fn, self.use_local_output)
-        )
 
 # Naive ListNet loss function implementation
 def list_net_loss(y_pred, y_true):
