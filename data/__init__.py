@@ -21,7 +21,7 @@ def get_dataset(args, tokenizer, device):
     elif args.dataset == 'graph':
         data_path = './data/datasets/graphs/deg_' + str(args.deg) + '_path_' + str(args.path_len) + '_nodes_' + \
                     str(args.num_nodes)
-        train_path, test_path = data_path + '_train_200000.txt', data_path + '_test_20000.txt'
+        train_path, test_path = data_path + '_train_' + str(args.n_train) + '.txt', data_path + '_test_' + str(args.n_test) + '.txt'
         train_data = Graphs(tokenizer=tokenizer, n_samples=args.n_train, data_path=train_path, device=device,
                             teacherless_token=teacherless_token, reverse=args.reverse)
         test_data = Graphs(tokenizer=tokenizer, n_samples=args.n_test, data_path=test_path, device=device,

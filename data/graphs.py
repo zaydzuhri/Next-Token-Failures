@@ -58,7 +58,7 @@ def generate_and_save(n_train, n_test, degSource, pathLen, numNodes, reverse=Fal
     """
     Generate a list of train and testing graphs and save them for reproducibility
     """
-    file = open('../data/datasets/graphs/' + 'deg_' + str(degSource) + '_path_' + str(pathLen) + '_nodes_' + str(
+    file = open('data/datasets/graphs/' + 'deg_' + str(degSource) + '_path_' + str(pathLen) + '_nodes_' + str(
         numNodes) + '_train_' +
           str(n_train) + '.txt', 'w')
 
@@ -79,7 +79,7 @@ def generate_and_save(n_train, n_test, degSource, pathLen, numNodes, reverse=Fal
         file.write(out + '\n')
     file.close()
 
-    file = open('../data/datasets/graphs/' + 'deg_' + str(degSource) + '_path_' + str(pathLen) + '_nodes_' +
+    file = open('data/datasets/graphs/' + 'deg_' + str(degSource) + '_path_' + str(pathLen) + '_nodes_' +
                 str(numNodes) + '_test_' +
                  str(n_test) + '.txt', 'w')
 
@@ -218,11 +218,11 @@ if __name__ == '__main__':
     from tokenizing import get_tokenizer
 
     # Create graphs and save
-    n_train = 200000
+    n_train = 500000
     n_test = 20000
-    deg = 2
+    deg = 5
     path_len = 5
-    num_nodes = 50
+    num_nodes = 100
     reverse = False
     generate_and_save(n_train=n_train, n_test=n_test, degSource=deg, pathLen=path_len, numNodes=num_nodes,
                       reverse=reverse)
