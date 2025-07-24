@@ -102,7 +102,7 @@ torch.backends.cudnn.deterministic = False
 top_k = 1
 
 # Evaluation stuff
-eval_iters = 1000
+eval_iters = 100
 eval_interval = 5
 log_interval = 10
 
@@ -110,11 +110,11 @@ log_interval = 10
 dtype = 'float16'
 ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[dtype]
 beta1 = 0.9
-beta2 = 0.999
+beta2 = 0.95
 decay_lr = True
 args.compile = True if device == 'cuda' else False
 args.use_flash = True if device == 'cuda' else False
-warmup_iters = 100
+warmup_iters = 5000
 min_lr = 1e-5
 
 run_name = get_run_name(args)
@@ -144,7 +144,7 @@ model.train()
 
 # initialize a GradScaler. If enabled=False scaler is a no-op
 scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
-optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.0)
+optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.01, betas=(beta1, beta2))
 ctx = nullcontext() if device == 'cpu' else torch.amp.autocast(device_type=device, dtype=ptdtype)
 
 # Setup wandb logging
@@ -183,6 +183,28 @@ for ep in range(args.epochs):
              total_acc.get(percentage=True))
         )
 
+        if eval_iters != -1 and num_iters % eval_iters == 0:
+            # Generate sequences and check accuracies
+            if args.eval_train:
+                results = evaluate(model, train_loader, temperature=0.8, top_k=top_k, results=results, mode='train')
+                results = evaluate_forced(model, train_loader, results=results, mode='train')
+
+            results = evaluate(model, test_loader, temperature=0.8, ctx=ctx, top_k=top_k, results=results, mode='test')
+            results = evaluate_forced(model, test_loader, ctx=ctx, results=results, mode='test')
+            results["train/loss"] = total_loss.get()
+            results["train/acc"] = total_acc.get(percentage=True)
+            results["train/lr"] = lr
+
+            if wandb_log:
+                wandb.log(results)
+
+        elif log_interval != -1 and num_iters % log_interval == 0:
+            wandb.log({
+                "train/loss": total_loss.get(),
+                "train/acc": total_acc.get(percentage=True),
+                "train/lr": lr,
+            })
+
     # evaluate the loss on train/val sets and write checkpoints
     if ep % args.eval_every == 0:
         # Generate sequences and check accuracies
@@ -192,8 +214,11 @@ for ep in range(args.epochs):
 
         results = evaluate(model, test_loader, temperature=0.8, ctx=ctx, top_k=top_k, results=results, mode='test')
         results = evaluate_forced(model, test_loader, ctx=ctx, results=results, mode='test')
-        results["train/loss"] = loss
-        results["train/acc"] = accs['acc']
+
+        if log_interval == -1:
+            results["train/loss"] = total_loss.get()
+            results["train/acc"] = total_acc.get(percentage=True)
+            results["train/lr"] = lr
 
         if wandb_log:
             wandb.log(results)
