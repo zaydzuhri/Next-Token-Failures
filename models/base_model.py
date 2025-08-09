@@ -7,6 +7,7 @@ from torch.nn import functional as F
 from models.cache import Cache
 from utils.training_utils import accuracy
 from models.top import seq_to_top, FusedLinearListNetLoss
+from models.mtp import seq_to_mtp
 
 class Transformer(nn.Module):
     def __init__(self, config, block):

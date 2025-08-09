@@ -11,6 +11,10 @@ from data import get_dataset
 from evaluate import evaluate, evaluate_forced
 from models import get_model
 
+def ignore_specific_warnings():
+    import warnings
+
+    warnings.filterwarnings("ignore", category=UserWarning, message="pkg_resources is deprecated as an API")
 
 # Parse arguments
 parser = argparse.ArgumentParser(description="Next-token prediction")
@@ -199,11 +203,12 @@ for ep in range(args.epochs):
                 wandb.log(results)
 
         elif log_interval != -1 and num_iters % log_interval == 0:
-            wandb.log({
-                "train/loss": total_loss.get(),
-                "train/acc": total_acc.get(percentage=True),
-                "train/lr": lr,
-            })
+            if wandb_log:
+                wandb.log({
+                    "train/loss": total_loss.get(),
+                    "train/acc": total_acc.get(percentage=True),
+                    "train/lr": lr,
+                })
 
     # evaluate the loss on train/val sets and write checkpoints
     if ep % args.eval_every == 0:
