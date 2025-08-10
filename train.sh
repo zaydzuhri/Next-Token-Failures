@@ -10,4 +10,5 @@ python train.py \
  --deg 2 \
  --path 5 \
  --num_nodes 50 \
- --lr 0.0001
+ --lr 0.0001 \
+ --compile

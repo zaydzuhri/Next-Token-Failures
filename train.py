@@ -91,6 +91,15 @@ parser.add_argument(
 parser.add_argument(
         "--use_top", action=argparse.BooleanOptionalAction, default=False, help="Use TOP for training",
     )
+parser.add_argument(
+        "--use_mtp", action=argparse.BooleanOptionalAction, default=False, help="Use MTP for training",
+    )
+parser.add_argument(
+        "--n_future_tokens", type=int, default=1, help="Number of future tokens to predict for MTP",
+    )
+parser.add_argument(
+        "--compile", action=argparse.BooleanOptionalAction, default=True, help="Whether to compile the model",
+    )
 
 args = parser.parse_args()
 # System stuff
@@ -116,7 +125,7 @@ ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torc
 beta1 = 0.9
 beta2 = 0.95
 decay_lr = True
-args.compile = True if device == 'cuda' else False
+# args.compile = True if device == 'cuda' else False
 args.use_flash = True if device == 'cuda' else False
 warmup_iters = 5000
 min_lr = 1e-5
