@@ -23,7 +23,7 @@ parser.add_argument(
         "--model", type=str, default='gpt', help="Learning rate",
     )
 parser.add_argument(
-        "--n_layer", type=int, default=6, help="Number of layers",
+        "--n_layers", type=int, default=6, help="Number of layers",
     )
 parser.add_argument(
         "--n_embd", type=int, default=240, help="Embedding size",

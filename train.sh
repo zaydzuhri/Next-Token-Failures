@@ -1,6 +1,6 @@
 python train.py \
  --model gpt \
- --n_layer 6 \
+ --n_layers 6 \
  --n_embd 384 \
  --n_head 6 \
  --n_train 200000 \
@@ -11,4 +11,5 @@ python train.py \
  --path 5 \
  --num_nodes 50 \
  --lr 0.0001 \
+ --use_top \
  --compile
