@@ -1,0 +1,22 @@
+[project]
+name = "next-token-failures"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy==1.26.3",
+    "pandas>=2.3.1",
+    "torch==2.2.0",
+    "torchaudio>=2.2.0",
+    "torchvision>=0.17.0",
+    "tqdm==4.66.1",
+    "transformers==4.37.2",
+    "wandb==0.16.2",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=6.30.0",
+    "ipywidgets>=8.1.7",
+]

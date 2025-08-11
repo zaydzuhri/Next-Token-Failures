@@ -11,6 +11,10 @@ from data import get_dataset
 from evaluate import evaluate, evaluate_forced
 from models import get_model
 
+def ignore_specific_warnings():
+    import warnings
+
+    warnings.filterwarnings("ignore", category=UserWarning, message="pkg_resources is deprecated as an API")
 
 # Parse arguments
 parser = argparse.ArgumentParser(description="Next-token prediction")
@@ -19,7 +23,7 @@ parser.add_argument(
         "--model", type=str, default='gpt', help="Learning rate",
     )
 parser.add_argument(
-        "--n_layer", type=int, default=6, help="Number of layers",
+        "--n_layers", type=int, default=6, help="Number of layers",
     )
 parser.add_argument(
         "--n_embd", type=int, default=240, help="Embedding size",
@@ -87,6 +91,15 @@ parser.add_argument(
 parser.add_argument(
         "--use_top", action=argparse.BooleanOptionalAction, default=False, help="Use TOP for training",
     )
+parser.add_argument(
+        "--use_mtp", action=argparse.BooleanOptionalAction, default=False, help="Use MTP for training",
+    )
+parser.add_argument(
+        "--n_future_tokens", type=int, default=1, help="Number of future tokens to predict for MTP",
+    )
+parser.add_argument(
+        "--compile", action=argparse.BooleanOptionalAction, default=True, help="Whether to compile the model",
+    )
 
 args = parser.parse_args()
 # System stuff
@@ -112,7 +125,7 @@ ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torc
 beta1 = 0.9
 beta2 = 0.95
 decay_lr = True
-args.compile = True if device == 'cuda' else False
+# args.compile = True if device == 'cuda' else False
 args.use_flash = True if device == 'cuda' else False
 warmup_iters = 5000
 min_lr = 1e-5
@@ -199,11 +212,12 @@ for ep in range(args.epochs):
                 wandb.log(results)
 
         elif log_interval != -1 and num_iters % log_interval == 0:
-            wandb.log({
-                "train/loss": total_loss.get(),
-                "train/acc": total_acc.get(percentage=True),
-                "train/lr": lr,
-            })
+            if wandb_log:
+                wandb.log({
+                    "train/loss": total_loss.get(),
+                    "train/acc": total_acc.get(percentage=True),
+                    "train/lr": lr,
+                })
 
     # evaluate the loss on train/val sets and write checkpoints
     if ep % args.eval_every == 0:

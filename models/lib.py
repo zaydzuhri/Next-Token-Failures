@@ -5,7 +5,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 if torch.cuda.is_available():
-    from flash_attn import flash_attn_func
+    try:
+        from flash_attn import flash_attn_func
+    except ImportError:
+        print('Flash attention not available, using standard attention')
+        flash_attn_func = None
 
 
 def gelu(x):
@@ -100,7 +104,15 @@ class Attention(nn.Module):
 
         # Here we could be faster with flash attention
         if self.config.use_flash:
-            out = flash_attn_func(queries, keys, values, causal=True)
+            if flash_attn_func is not None:
+                out = flash_attn_func(queries, keys, values, causal=True)
+            else:
+                # Use SDPA
+                queries = queries.transpose(1, 2)  # bsz x n_heads x s1 x head_dim
+                keys = keys.transpose(1, 2)        # bsz x n_heads x s2 x head_dim
+                values = values.transpose(1, 2)    # bsz x n_heads x s2 x head_dim
+                out = torch.nn.functional.scaled_dot_product_attention(queries, keys, values, is_causal=True)
+                out = out.transpose(1, 2)          # bsz x s1 x n_heads x head_dim
         else:
             att = torch.einsum('bmhd,bnhd->bmnh', queries, keys)      # bsz x s1 x s2 x n_heads
             # Make sure we mask right, in case query and sequence length are different

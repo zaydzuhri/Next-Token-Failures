@@ -7,21 +7,28 @@ from torch.nn import functional as F
 from models.cache import Cache
 from utils.training_utils import accuracy
 from models.top import seq_to_top, FusedLinearListNetLoss
+from models.mtp import seq_to_mtp
 
 class Transformer(nn.Module):
     def __init__(self, config, block):
         super().__init__()
         self.config = config
-
         self.vocab_size = config.vocab_size
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
         self.embed_tokens = nn.Embedding(config.vocab_size, config.n_embd)
         # Positional encoding has to be overwritten in __init__ of subclass
-        self.pos_encoding = lambda x: 0
+        self.pos_encoding = lambda x: 0  
 
-        self.layers = nn.ModuleList(
-            [block(config, layer_idx) for layer_idx in range(config.n_layers)]
-        )
+        if config.use_mtp:
+            self.n_future_tokens = config.n_future_tokens
+            n_shared_layers = config.n_layers - self.n_future_tokens
+            self.layers = nn.ModuleList([block(config, i) for i in range(n_shared_layers)])
+            self.extra_heads = nn.ModuleList([block(config, i) for i in range(n_shared_layers, config.n_layers)])
+        else:
+            self.n_future_tokens = 0
+            self.layers = nn.ModuleList([block(config, i) for i in range(config.n_layers)])
+            self.extra_heads = None
+
         self.final_layernorm = nn.LayerNorm(config.n_embd)
 
         if config.use_top:
@@ -41,7 +48,7 @@ class Transformer(nn.Module):
         # apply special scaled init to the residual projections, per GPT-2 paper
         for pn, p in self.named_parameters():
             if pn.endswith('mlp.projection.weight'):
-                torch.nn.init.normal_(p, mean=0.0, std=0.02/math.sqrt(2 * config.n_layer))
+                torch.nn.init.normal_(p, mean=0.0, std=0.02/math.sqrt(2 * config.n_layers))
 
         # report number of parameters
         all_params, non_emb_params = self.get_num_params()
@@ -92,34 +99,59 @@ class Transformer(nn.Module):
 
         for block in self.layers:
             x = block(x, self.cache)
-
-        x = self.final_layernorm(x)
+        
+        trunk = x
 
         if targets is not None:
-            # if we are given some desired targets also calculate the loss
-            logits = self.lm_head(x)
-            # Calculate loss with ignore_index=-1, meaning we skip the gradient contributions from those tokens
-            # which is basically the prefix tokens
-            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1)
+            loss = 0
+            if self.config.use_mtp and self.training:
+                latents = []
+                for mtp_block in self.extra_heads:
+                    latents.append(mtp_block(trunk, self.cache))
+                
+                stacked_latents = torch.stack(latents, dim=-2)  # (B, T, n_future_tokens, D)
+                normalized_latents = self.final_layernorm(stacked_latents)
+                all_logits = self.lm_head(normalized_latents)
+
+                all_labels = seq_to_mtp(targets, n_future_tokens=self.n_future_tokens)
+                
+                current_loss = 0
+                for i in range(self.n_future_tokens):
+                    logits = all_logits[:, :, i, :]
+                    labels = all_labels[:, :, i]
+                    current_loss += F.cross_entropy(logits.view(labels.numel(), -1), labels.view(-1), ignore_index=-1)
+                
+                loss += current_loss
+                logits = all_logits[:, :, 0, :] # For accuracy calculation, use the primary head's logits
+            else:
+                trunk = self.extra_heads[0](trunk, self.cache) if self.extra_heads else trunk
+                x_final = self.final_layernorm(trunk)
+                logits = self.lm_head(x_final)
+                loss = F.cross_entropy(logits.view(-1, self.vocab_size), targets.view(-1), ignore_index=-1)
+
             if self.config.use_top:
                 # Use TOP for loss calculation
                 # Pad the targets to double the sequence length with -1s
+                x_final_for_top = self.final_layernorm(trunk)
                 top_targets = torch.cat((targets, -1 * torch.ones((bsz, seq_len), dtype=torch.long, device=device)), dim=1)
                 top_targets = seq_to_top(top_targets, vocab_size=self.vocab_size, window_size=seq_len, pad_token_id=-1)
                 # we need to ignore the prefix tokens in the TOP loss too
                 # check at which position the prefix ends
                 prefix_end = targets[0].eq(-1).sum()
-                top_loss = self.top_loss(x[:, prefix_end:].contiguous(), top_targets[:, prefix_end:].contiguous(), self.top_head.weight, self.top_head.bias)
+                top_loss = self.top_loss(x_final_for_top[:, prefix_end:].contiguous(), top_targets[:, prefix_end:].contiguous(), self.top_head.weight, self.top_head.bias)
                 loss = loss + top_loss
 
             acc, token_acc = accuracy(logits, targets)
             accs = {"acc": acc, "token_acc": token_acc}
-        else:
-            # inference-time mini-optimization: only forward the lm_head on the very last position
-            logits = self.lm_head(x[:, [-1], :])  # note: using list [-1] to preserve the time dim
-            loss, accs = None, None
+            return logits, loss, accs
 
-        return logits, loss, accs
+        # Inference logic (always uses the standard path)
+        else:
+            trunk = self.extra_heads[0](trunk, self.cache) if self.extra_heads else trunk
+            x_final = self.final_layernorm(trunk)
+            logits = self.lm_head(x_final[:, [-1], :])
+            return logits, None, None
+
 
     @torch.no_grad()
     def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None):
