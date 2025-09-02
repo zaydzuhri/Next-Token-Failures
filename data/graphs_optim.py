@@ -105,7 +105,7 @@ if __name__ == '__main__':
     n_train = 30000000
     n_test = 20000
     deg = 2
-    path_len = 10
+    path_len = 5
     num_nodes = 100
     reverse = False
 

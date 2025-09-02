@@ -19,7 +19,7 @@ class Transformer(nn.Module):
         # Positional encoding has to be overwritten in __init__ of subclass
         self.pos_encoding = lambda x: 0  
 
-        if config.use_mtp:
+        if config.use_mtp or config.use_dsmtp:
             self.n_future_tokens = config.n_future_tokens
             n_shared_layers = config.n_layers - self.n_future_tokens
             self.layers = nn.ModuleList([block(config, i) for i in range(n_shared_layers)])
@@ -105,6 +105,31 @@ class Transformer(nn.Module):
         if targets is not None:
             loss = 0
             if self.config.use_mtp and self.training:
+                latents = []
+                for mtp_block in self.extra_heads:
+                    latents.append(mtp_block(trunk, self.cache))
+                
+                stacked_latents = torch.stack(latents, dim=-2)  # (B, T, n_future_tokens, D)
+                normalized_latents = self.final_layernorm(stacked_latents)
+                all_logits = self.lm_head(normalized_latents)
+
+                all_labels = seq_to_mtp(targets, n_future_tokens=self.n_future_tokens)
+                
+                current_loss = 0
+                for i in range(self.n_future_tokens):
+                    logits = all_logits[:, :, i, :]
+                    labels = all_labels[:, :, i]
+                    current_loss += F.cross_entropy(logits.view(labels.numel(), -1), labels.view(-1), ignore_index=-1)
+                
+                loss += current_loss
+                logits = all_logits[:, :, 0, :] # For accuracy calculation, use the primary head's logits
+            else:
+                trunk = self.extra_heads[0](trunk, self.cache) if self.extra_heads else trunk
+                x_final = self.final_layernorm(trunk)
+                logits = self.lm_head(x_final)
+                loss = F.cross_entropy(logits.view(-1, self.vocab_size), targets.view(-1), ignore_index=-1)
+
+            if self.config.use_dsmtp and self.training:
                 latents = []
                 for mtp_block in self.extra_heads:
                     latents.append(mtp_block(trunk, self.cache))

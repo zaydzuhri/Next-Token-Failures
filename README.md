@@ -15,7 +15,7 @@ The following packages are needed to run the code:
 
 ## Usage
 In order to train a GPT-style model from scratch with standard next-token prediction on a star graph with degree 2 and path length 5 with 50 possible node values, run the command
-> python3 train.py --model gpt --n_layer 6 --n_embd 384 --n_head 6 --n_train 200000 --n_test 20000  --batch_size 256 --dataset graph --deg 2 --path 5 --num_nodes 50 --lr 0.0001
+> python3 train.py --model gpt --n_layers 6 --n_embd 384 --n_head 6 --n_train 200000 --n_test 20000  --batch_size 256 --dataset graph --deg 2 --path 5 --num_nodes 50 --lr 0.0001
 
 To train the same model using the reverse encoding, add the flag *--reverse*. In order to train with our teacherless objective, add the flag --teacherless. 
 

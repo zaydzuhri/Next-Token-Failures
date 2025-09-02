@@ -51,7 +51,7 @@ class GPT(Transformer):
         from transformers import GPT2LMHeadModel
         print("loading weights from pretrained gpt: %s" % model_type)
 
-        # n_layer, n_head and n_embd are determined from model_type
+        # n_layers, n_head and n_embd are determined from model_type
         config_args = {
             'gpt2': dict(n_layers=12, n_heads=12, n_embd=768),  # 124M params
             'gpt2-medium': dict(n_layers=24, n_heads=16, n_embd=1024),  # 350M params

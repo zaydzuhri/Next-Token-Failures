@@ -140,6 +140,7 @@ train_data, test_data = get_dataset(args, tokenizer, device)
 train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
 test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=True)
 
+# max_iters = (len(train_data) * args.epochs) // args.batch_size
 max_iters = len(train_data) * args.epochs
 lr_decay_iters = max_iters
 

@@ -48,6 +48,7 @@ class GPTConfig:
     max_bsz: int = 16
     use_top: bool = False
     use_mtp: bool = False
+    use_dsmtp: bool = False
     n_future_tokens: int = 1
 
 

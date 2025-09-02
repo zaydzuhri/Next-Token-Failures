@@ -30,7 +30,7 @@ class Pythia(Transformer):
 
     @classmethod
     def from_pretrained(cls, model_type, teacherless_token=None):
-        # n_layer, n_head and n_embd are determined from model_type
+        # n_layers, n_head and n_embd are determined from model_type
         config_args = {
             'pythia-70m-deduped': dict(n_layers=6, n_heads=8, n_embd=512),  # 124M params
             'pythia-160m-deduped': dict(n_layers=12, n_heads=12, n_embd=768),  # 350M params
