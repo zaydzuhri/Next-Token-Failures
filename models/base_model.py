@@ -104,7 +104,7 @@ class Transformer(nn.Module):
 
         if targets is not None:
             loss = 0
-            if self.config.use_mtp and self.training:
+            if self.config.use_mtp:
                 latents = []
                 for mtp_block in self.extra_heads:
                     latents.append(mtp_block(trunk, self.cache))
@@ -123,13 +123,7 @@ class Transformer(nn.Module):
                 
                 loss += current_loss
                 logits = all_logits[:, :, 0, :] # For accuracy calculation, use the primary head's logits
-            else:
-                trunk = self.extra_heads[0](trunk, self.cache) if self.extra_heads else trunk
-                x_final = self.final_layernorm(trunk)
-                logits = self.lm_head(x_final)
-                loss = F.cross_entropy(logits.view(-1, self.vocab_size), targets.view(-1), ignore_index=-1)
-
-            if self.config.use_dsmtp and self.training:
+            elif self.config.use_dsmtp:
                 latents = []
                 for mtp_block in self.extra_heads:
                     latents.append(mtp_block(trunk, self.cache))
