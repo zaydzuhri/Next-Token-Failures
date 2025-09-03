@@ -127,13 +127,14 @@ beta2 = 0.95
 decay_lr = True
 # args.compile = True if device == 'cuda' else False
 args.use_flash = True if device == 'cuda' else False
-warmup_iters = 5000
+warmup_iters = 2500
 min_lr = 1e-5
 
 run_name = get_run_name(args)
 path = './checkpoints/' + run_name + '.pt'
 
 # Get tokenizer and de-tokenizer
+print("Tokenizing...")
 tokenizer = get_tokenizer(args)
 train_data, test_data = get_dataset(args, tokenizer, device)
 
