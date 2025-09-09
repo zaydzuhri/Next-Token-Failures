@@ -127,7 +127,7 @@ beta2 = 0.95
 decay_lr = True
 # args.compile = True if device == 'cuda' else False
 args.use_flash = True if device == 'cuda' else False
-warmup_iters = 2500
+warmup_iters = 1000
 min_lr = 1e-5
 
 run_name = get_run_name(args)
@@ -141,8 +141,8 @@ train_data, test_data = get_dataset(args, tokenizer, device)
 train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
 test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=True)
 
-# max_iters = (len(train_data) * args.epochs) // args.batch_size
-max_iters = len(train_data) * args.epochs
+max_iters = (len(train_data) * args.epochs) // args.batch_size
+# max_iters = len(train_data) * args.epochs
 lr_decay_iters = max_iters
 
 args.block_size = train_data.num_tokens

@@ -21,9 +21,11 @@ class Transformer(nn.Module):
 
         if config.use_mtp or config.use_dsmtp:
             self.n_future_tokens = config.n_future_tokens
-            n_shared_layers = config.n_layers - self.n_future_tokens
-            self.layers = nn.ModuleList([block(config, i) for i in range(n_shared_layers)])
-            self.extra_heads = nn.ModuleList([block(config, i) for i in range(n_shared_layers, config.n_layers)])
+            # n_shared_layers = config.n_layers - self.n_future_tokens
+            # self.layers = nn.ModuleList([block(config, i) for i in range(n_shared_layers)])
+            # self.extra_heads = nn.ModuleList([block(config, i) for i in range(n_shared_layers, config.n_layers)])
+            self.layers = nn.ModuleList([block(config, i) for i in range(config.n_layers - 1)])
+            self.extra_heads = nn.ModuleList([block(config, i) for i in range(self.n_future_tokens)])
         else:
             self.n_future_tokens = 0
             self.layers = nn.ModuleList([block(config, i) for i in range(config.n_layers)])

@@ -102,11 +102,11 @@ if __name__ == '__main__':
     from tokenizing import get_tokenizer
 
     # Create graphs and save
-    n_train = 15000000
+    n_train = 200000
     n_test = 20000
     deg = 2
     path_len = 5
-    num_nodes = 20
+    num_nodes = 15
     reverse = False
 
     # Create output directory if not exists
