@@ -127,8 +127,8 @@ beta2 = 0.95
 decay_lr = True
 # args.compile = True if device == 'cuda' else False
 args.use_flash = True if device == 'cuda' else False
-warmup_iters = 1000
-min_lr = 1e-5
+warmup_iters = 1500
+min_lr = 1e-4
 
 run_name = get_run_name(args)
 path = './checkpoints/' + run_name + '.pt'

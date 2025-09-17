@@ -103,10 +103,10 @@ if __name__ == '__main__':
 
     # Create graphs and save
     n_train = 200000
-    n_test = 20000
-    deg = 2
-    path_len = 5
-    num_nodes = 15
+    n_test = 10000
+    deg = 3
+    path_len = 3
+    num_nodes = 30
     reverse = False
 
     # Create output directory if not exists
