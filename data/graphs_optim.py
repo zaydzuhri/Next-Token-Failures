@@ -102,7 +102,7 @@ if __name__ == '__main__':
     from tokenizing import get_tokenizer
 
     # Create graphs and save
-    n_train = 200000
+    n_train = 300000
     n_test = 10000
     deg = 3
     path_len = 3
