@@ -8,6 +8,7 @@ from models.cache import Cache
 from utils.training_utils import accuracy
 from models.top import seq_to_top, FusedLinearListNetLoss
 from models.mtp import seq_to_mtp
+from models.dsmtp import seq_to_dsmtp
 
 class Transformer(nn.Module):
     def __init__(self, config, block):
@@ -26,6 +27,10 @@ class Transformer(nn.Module):
             # self.extra_heads = nn.ModuleList([block(config, i) for i in range(n_shared_layers, config.n_layers)])
             self.layers = nn.ModuleList([block(config, i) for i in range(config.n_layers - 1)])
             self.extra_heads = nn.ModuleList([block(config, i) for i in range(self.n_future_tokens)])
+            if config.use_dsmtp:
+                self.projection_head = nn.ModuleList([nn.Linear(2 * config.n_embd, config.n_embd) for _ in range(config.n_future_tokens)])
+                self.norms_1 = nn.ModuleList([nn.LayerNorm(config.n_embd) for _ in range(config.n_future_tokens)])
+                self.norms_2 = nn.ModuleList([nn.LayerNorm(config.n_embd) for _ in range(config.n_future_tokens)])
         else:
             self.n_future_tokens = 0
             self.layers = nn.ModuleList([block(config, i) for i in range(config.n_layers)])
@@ -93,11 +98,13 @@ class Transformer(nn.Module):
         bsz, seq_len = idx.size()
         assert seq_len <= self.config.block_size, f"Cannot forward sequence of length {seq_len}, block size is only " \
                                                   f"{self.config.block_size}"
+        if self.config.use_dsmtp: idx, targets = seq_to_dsmtp(idx, targets, model_seq_len=self.config.block_size, n_future_tokens=self.n_future_tokens)
         tok_emb = self.embed_tokens(idx)
         start_pos = 0 if self.cache is None or not self.cache.use_caching else self.cache.cur_seq_len[0]
         pos = torch.arange(start_pos, seq_len + start_pos, dtype=torch.long, device=device).unsqueeze(0)
         pos_emb = self.pos_encoding(pos)
         x = tok_emb + pos_emb
+        if self.config.use_dsmtp: x = x[:, 0]
 
         for block in self.layers:
             x = block(x, self.cache)
@@ -127,14 +134,18 @@ class Transformer(nn.Module):
                 logits = all_logits[:, :, 0, :] # For accuracy calculation, use the primary head's logits
             elif self.config.use_dsmtp:
                 latents = []
+                hidden_states = trunk
                 for mtp_block in self.extra_heads:
-                    latents.append(mtp_block(trunk, self.cache))
-                
+                    if i > 0:
+                        hidden_states = self.norms_1[i](hidden_states)
+                        new_input = self.norms_2[i](tok_emb[:, i] + pos_emb)
+                        hidden_states = torch.cat([hidden_states, new_input], dim=-1)
+                        hidden_states = self.projection_head[i](hidden_states)
+                    latents.append(mtp_block(hidden_states))
+
                 stacked_latents = torch.stack(latents, dim=-2)  # (B, T, n_future_tokens, D)
                 normalized_latents = self.final_layernorm(stacked_latents)
                 all_logits = self.lm_head(normalized_latents)
-
-                all_labels = seq_to_mtp(targets, n_future_tokens=self.n_future_tokens)
                 
                 current_loss = 0
                 for i in range(self.n_future_tokens):
