@@ -95,6 +95,9 @@ parser.add_argument(
         "--use_mtp", action=argparse.BooleanOptionalAction, default=False, help="Use MTP for training",
     )
 parser.add_argument(
+        "--use_dsmtp", action=argparse.BooleanOptionalAction, default=False, help="Use DSMTP for training",
+    )
+parser.add_argument(
         "--n_future_tokens", type=int, default=1, help="Number of future tokens to predict for MTP",
     )
 parser.add_argument(

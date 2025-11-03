@@ -93,6 +93,7 @@ class Transformer(nn.Module):
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
+    @torch.compiler.disable
     def forward(self, idx, targets=None):
         device = idx.device
         bsz, seq_len = idx.size()
@@ -135,7 +136,7 @@ class Transformer(nn.Module):
             elif self.config.use_dsmtp:
                 latents = []
                 hidden_states = trunk
-                for mtp_block in self.extra_heads:
+                for i, mtp_block in enumerate(self.extra_heads):
                     if i > 0:
                         hidden_states = self.norms_1[i](hidden_states)
                         new_input = self.norms_2[i](tok_emb[:, i] + pos_emb)
@@ -150,11 +151,12 @@ class Transformer(nn.Module):
                 current_loss = 0
                 for i in range(self.n_future_tokens):
                     logits = all_logits[:, :, i, :]
-                    labels = all_labels[:, :, i]
-                    current_loss += F.cross_entropy(logits.view(labels.numel(), -1), labels.view(-1), ignore_index=-1)
+                    labels = targets[:, i, :]
+                    current_loss += F.cross_entropy(logits.view(labels.numel(), -1), labels.reshape(-1), ignore_index=-1)
                 
                 loss += current_loss
                 logits = all_logits[:, :, 0, :] # For accuracy calculation, use the primary head's logits
+                targets = targets[:, 0, :]
             else:
                 trunk = self.extra_heads[0](trunk, self.cache) if self.extra_heads else trunk
                 x_final = self.final_layernorm(trunk)

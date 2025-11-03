@@ -27,4 +27,5 @@ def seq_to_mtp(
             future_targets[:, -i:] = -1
         all_targets.append(future_targets)
     # Stack along the last dimension to create the (B, T, n_future_tokens) tensor
-    return torch.stack(all_targets, dim=2)
+    all_targets = torch.stack(all_targets, dim=-1)
+    return all_targets
