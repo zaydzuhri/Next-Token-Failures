@@ -99,13 +99,13 @@ class Transformer(nn.Module):
         bsz, seq_len = idx.size()
         assert seq_len <= self.config.block_size, f"Cannot forward sequence of length {seq_len}, block size is only " \
                                                   f"{self.config.block_size}"
-        if self.config.use_dsmtp: idx, targets = seq_to_dsmtp(idx, targets, model_seq_len=self.config.block_size, n_future_tokens=self.n_future_tokens)
+        if self.config.use_dsmtp and targets is not None: idx, targets = seq_to_dsmtp(idx, targets, model_seq_len=self.config.block_size, n_future_tokens=self.n_future_tokens)
         tok_emb = self.embed_tokens(idx)
         start_pos = 0 if self.cache is None or not self.cache.use_caching else self.cache.cur_seq_len[0]
         pos = torch.arange(start_pos, seq_len + start_pos, dtype=torch.long, device=device).unsqueeze(0)
         pos_emb = self.pos_encoding(pos)
         x = tok_emb + pos_emb
-        if self.config.use_dsmtp: x = x[:, 0]
+        if self.config.use_dsmtp and targets is not None: x = x[:, 0]
 
         for block in self.layers:
             x = block(x, self.cache)
